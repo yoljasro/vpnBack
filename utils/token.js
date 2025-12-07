@@ -3,16 +3,18 @@ import jwt from "jsonwebtoken";
 
 export const generateAccessToken = (user) => {
   return jwt.sign(
-    { id: user._id, email: user.email },
+    { id: user._id, email: user.email || null },
     process.env.JWT_SECRET,
     { expiresIn: "1h" }
   );
 };
 
 export const generateRefreshToken = (user) => {
-  return jwt.sign({ id: user._id }, process.env.REFRESH_SECRET, {
-    expiresIn: "7d",
-  });
+  return jwt.sign(
+    { id: user._id },
+    process.env.REFRESH_SECRET,
+    { expiresIn: "7d" }
+  );
 };
 
 export const verifyToken = (token, secret) => {

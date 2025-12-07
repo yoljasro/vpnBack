@@ -3,15 +3,17 @@ import mongoose from "mongoose";
 
 const UserSchema = new mongoose.Schema(
   {
-    name: { type: String, required: false, trim: true },
-    email: { type: String, unique: true, sparse: true, trim: true },
-    phone: { type: String, trim: true },
+    name: { type: String, trim: true, default: "" },
+    email: { type: String, unique: true, sparse: true, trim: true, lowercase: true },
+    phone: { type: String, trim: true, default: "" },
     password: { type: String, minlength: 6 },
+    avatar: { type: String, default: null },
+    premium: { type: Boolean, default: false },
     verificationCode: { type: String },
-    verificationCodeExpires: { type: Date }, // kod muddati uchun
+    verificationCodeExpires: { type: Date },
     isVerified: { type: Boolean, default: false },
     telegramId: { type: String, unique: true, sparse: true },
-    refreshTokenHash: { type: String }, // refresh tokenni hash qilib saqlaymiz
+    refreshTokenHash: { type: String },
     devices: [
       {
         deviceId: String,

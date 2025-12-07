@@ -1,108 +1,99 @@
+// controllers/auth.controller.js
 import bcrypt from "bcryptjs";
 import User from "../models/User.js";
-import generateCode from "../utils/code.js";
-import { sendVerificationEmail } from "../utils/mailer.js";
 import { generateAccessToken, generateRefreshToken, verifyToken } from "../utils/token.js";
 
 const REFRESH_TOKEN_SALT_ROUNDS = 10;
-const VERIFICATION_CODE_TTL_MINUTES = 15;
 
-export const registerEmail = async (req, res) => {
+// ------------------- EMAIL REGISTER -------------------
+export const registerEmailImmediate = async (req, res) => {
   try {
-    const { name, email, password, phone } = req.body;
+    let { name, email, password, phone } = req.body;
+    if (!email || !password) return res.status(400).json({ message: "Email va parol talab qilinadi" });
 
-    if (!email) return res.status(400).json({ message: "Email kiritilmagan" });
-    if (!password || password.length < 6)
-      return res.status(400).json({ message: "Parol kamida 6 ta belgidan bo‘lishi kerak" });
+    email = email.toLowerCase();
+    if (password.length < 6) return res.status(400).json({ message: "Parol kamida 6 ta belgidan iborat bo‘lishi kerak" });
 
-    const existingUser = await User.findOne({ email });
-    if (existingUser) return res.status(400).json({ message: "Email allaqachon ro‘yxatdan o‘tgan" });
+    const exists = await User.findOne({ email });
+    if (exists) return res.status(400).json({ message: "Email allaqachon ro‘yxatdan o‘tgan" });
 
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const verificationCode = generateCode(6);
-    const expires = new Date(Date.now() + VERIFICATION_CODE_TTL_MINUTES * 60 * 1000);
+    const hashed = await bcrypt.hash(password, 10);
 
     const user = await User.create({
-      name,
+      name: name || "",
       email,
-      password: hashedPassword,
-      phone,
-      verificationCode,
-      verificationCodeExpires: expires,
-      isVerified: false,
+      password: hashed,
+      phone: phone || "",
+      avatar: null,
+      premium: false,
+      registerType: "email",
+      isVerified: true
     });
-
-    // Email yuborish o‘rniga console.log qilamiz
-    console.log(`Verification code for ${email}: ${verificationCode}`);
-
-    res.status(201).json({
-      message: "Foydalanuvchi yaratildi. Verification code console.log da ko‘rish mumkin.",
-    });
-  } catch (err) {
-    console.error("registerEmail err:", err);
-    res.status(500).json({ message: err.message });
-  }
-};
-
-export const verifyEmail = async (req, res) => {
-  try {
-    const { email, code } = req.body;
-    if (!email || !code) return res.status(400).json({ message: "Email va kod talab qilinadi" });
-
-    const user = await User.findOne({ email });
-    if (!user) return res.status(404).json({ message: "Foydalanuvchi topilmadi" });
-
-    if (user.verificationCode !== code)
-      return res.status(400).json({ message: "Kod noto‘g‘ri" });
-
-    if (user.verificationCodeExpires && user.verificationCodeExpires < new Date())
-      return res.status(400).json({ message: "Kod muddati o‘tgan. Yangi kod so‘rang." });
-
-    user.isVerified = true;
-    user.verificationCode = null;
-    user.verificationCodeExpires = null;
 
     const accessToken = generateAccessToken(user);
     const refreshToken = generateRefreshToken(user);
     const refreshTokenHash = await bcrypt.hash(refreshToken, REFRESH_TOKEN_SALT_ROUNDS);
-
     user.refreshTokenHash = refreshTokenHash;
     await user.save();
 
-    res.json({ accessToken, refreshToken });
+    return res.status(201).json({
+      message: "Registered successfully",
+      accessToken,
+      refreshToken,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        avatar: user.avatar,
+        premium: user.premium
+      }
+    });
   } catch (err) {
-    console.error("verifyEmail err:", err);
-    res.status(500).json({ message: err.message });
+    console.error("registerEmailImmediate err:", err);
+    return res.status(500).json({ message: "Server error" });
   }
 };
 
+// ------------------- EMAIL LOGIN -------------------
 export const loginEmail = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    let { email, password } = req.body;
     if (!email || !password) return res.status(400).json({ message: "Email va parol talab qilinadi" });
 
+    email = email.toLowerCase();
     const user = await User.findOne({ email });
-    if (!user) return res.status(404).json({ message: "Foydalanuvchi topilmadi" });
+    if (!user) return res.status(400).json({ message: "Foydalanuvchi topilmadi" });
 
-    if (!user.isVerified) return res.status(403).json({ message: "Email tasdiqlanmagan" });
-
-    const isMatch = await bcrypt.compare(password, user.password);
+    const isMatch = await bcrypt.compare(password, user.password || "");
     if (!isMatch) return res.status(400).json({ message: "Parol noto‘g‘ri" });
 
     const accessToken = generateAccessToken(user);
     const refreshToken = generateRefreshToken(user);
     const refreshTokenHash = await bcrypt.hash(refreshToken, REFRESH_TOKEN_SALT_ROUNDS);
-
     user.refreshTokenHash = refreshTokenHash;
     await user.save();
 
-    res.json({ accessToken, refreshToken });
+    return res.json({
+      message: "Login success",
+      accessToken,
+      refreshToken,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        avatar: user.avatar,
+        premium: user.premium
+      }
+    });
   } catch (err) {
     console.error("loginEmail err:", err);
-    res.status(500).json({ message: err.message });
+    return res.status(500).json({ message: "Server error" });
   }
 };
 
+// ------------------- REFRESH TOKEN -------------------
 export const refreshToken = async (req, res) => {
   try {
     const { token } = req.body;
@@ -118,9 +109,116 @@ export const refreshToken = async (req, res) => {
     if (!isValid) return res.status(403).json({ message: "Token noto‘g‘ri" });
 
     const accessToken = generateAccessToken(user);
-    res.json({ accessToken });
+    return res.json({ accessToken });
   } catch (err) {
     console.error("refreshToken err:", err);
-    res.status(500).json({ message: err.message });
+    return res.status(500).json({ message: "Server error" });
+  }
+};
+
+// ------------------- TELEGRAM LOGIN -------------------
+export const telegramLogin = async (req, res) => {
+  try {
+    const tg = req.user; // set by telegramAuthValidator
+    if (!tg || !tg.id) return res.status(400).json({ message: "Telegram data required" });
+
+    let user = await User.findOne({ telegramId: tg.id });
+    if (!user) {
+      user = await User.create({
+        name: tg.first_name || tg.username || "TelegramUser",
+        telegramId: tg.id,
+        avatar: tg.photo_url || null,
+        isVerified: true,
+        registerType: "telegram"
+      });
+    }
+
+    const accessToken = generateAccessToken(user);
+    const refreshToken = generateRefreshToken(user);
+    const refreshTokenHash = await bcrypt.hash(refreshToken, REFRESH_TOKEN_SALT_ROUNDS);
+    user.refreshTokenHash = refreshTokenHash;
+    await user.save();
+
+    return res.json({
+      message: "Telegram auth success",
+      accessToken,
+      refreshToken,
+      user: {
+        id: user._id,
+        name: user.name,
+        telegramId: user.telegramId,
+        avatar: user.avatar,
+        premium: user.premium || false
+      }
+    });
+  } catch (err) {
+    console.error("telegramLogin err:", err);
+    return res.status(500).json({ message: "Server error" });
+  }
+};
+
+
+// ------------------- UPDATE PROFILE (/me) -------------------
+export const updateProfile = async (req, res) => {
+  try {
+    const user = req.user; // authMiddleware orqali keladi
+    if (!user) return res.status(404).json({ message: "Foydalanuvchi topilmadi" });
+
+    const { name, phone, avatar, premium } = req.body;
+
+    // Foydalanuvchi ma'lumotlarini yangilash (faqat ruxsat berilgan maydonlar)
+    if (name !== undefined) user.name = name;
+    if (phone !== undefined) user.phone = phone;
+    if (avatar !== undefined) user.avatar = avatar;
+    if (premium !== undefined) user.premium = premium;
+
+    await user.save();
+
+    return res.json({
+      message: "Profile updated successfully",
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email || null,
+        phone: user.phone || null,
+        telegramId: user.telegramId || null,
+        username: user.username || null,
+        avatar: user.avatar || null,
+        premium: user.premium || false,
+        registerType: user.registerType || "unknown",
+        role: user.role || "user",
+        createdAt: user.createdAt
+      }
+    });
+  } catch (err) {
+    console.error("updateProfile err:", err);
+    return res.status(500).json({ message: "Server error" });
+  }
+};
+
+
+
+// ------------------- GET PROFILE (/me) -------------------
+export const getMe = async (req, res) => {
+  try {
+    const user = req.user; // set by authMiddleware
+    if (!user) return res.status(404).json({ message: "Foydalanuvchi topilmadi" });
+
+    return res.json({
+      id: user._id,
+      name: user.name,
+      email: user.email || null,
+      phone: user.phone || null,
+      telegramId: user.telegramId || null,
+      username: user.username || null,
+      avatar: user.avatar || null,
+      premium: user.premium || false,
+      registerType: user.registerType || "unknown",
+      role: user.role || "user",
+      createdAt: user.createdAt
+    });
+  } catch (err) {
+    console.error("getMe err:", err);
+    return res.status(500).json({ message: "Server error" });
   }
 };
