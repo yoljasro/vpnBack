@@ -5,6 +5,8 @@ import helmet from "helmet";
 import morgan from "morgan";
 import dotenv from "dotenv";
 import connectDB from "./config/db.js";
+import serverRoutes from "./routes/serverRoutes.js";
+
 
 import authRoutes from "./routes/authRoutes.js";
 import telegramRoutes from "./routes/telegramRoutes.js"; // ✅ TO‘G‘RI
@@ -25,6 +27,8 @@ await connectDB();
 // Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/auth/telegram", telegramRoutes); // ✅ TO‘G‘RI
+app.use("/api/servers", serverRoutes);
+
 
 // Home route
 app.get("/", (req, res) => {
