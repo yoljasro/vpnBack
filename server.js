@@ -6,6 +6,7 @@ import morgan from "morgan";
 import dotenv from "dotenv";
 import connectDB from "./config/db.js";
 import serverRoutes from "./routes/serverRoutes.js";
+import wireguardRoutes from "./routes/wireguardRoutes.js";
 
 
 import authRoutes from "./routes/authRoutes.js";
@@ -28,6 +29,8 @@ await connectDB();
 app.use("/api/auth", authRoutes);
 app.use("/api/auth/telegram", telegramRoutes); // ✅ TO‘G‘RI
 app.use("/api/servers", serverRoutes);
+app.use("/wireguard", wireguardRoutes);
+
 
 
 // Home route
