@@ -12,9 +12,15 @@ const serverSchema = new mongoose.Schema(
 
     // WireGuard fields
     wgPort: { type: Number, default: 51820 },
-    wgPublicKey: { type: String },
+    wgPublicKey: { type: String, required: true },
+
     dns: { type: String, default: "1.1.1.1" },
-    allowedIPs: { type: String, default: "0.0.0.0/0" }
+
+    // ⚠️ MUHIM
+    allowedIPs: {
+      type: [String],
+      default: ["0.0.0.0/0"]
+    }
   },
   { timestamps: true }
 );
