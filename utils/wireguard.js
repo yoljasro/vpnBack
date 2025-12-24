@@ -4,11 +4,6 @@ import { withWgLock } from "./wgMutex.js";
 
 const exec = util.promisify(_exec);
 
-// ➕ IP ajratish callback emas, allocateIp orqali
-export async function assignClientIP() {
-  throw new Error("Use allocateIp() from ipAllocator.js");
-}
-
 // ➕ ADD PEER
 export const addPeerToWireguard = async (server, publicKey, ip) => {
   return withWgLock(async () => {

@@ -1,16 +1,19 @@
-// routes/wireguardRoutes.js
 import express from "express";
 import {
   registerWireguardClient,
-  getUserWireguardConfig
+  getUserWireguardConfig,
+  deleteWireguardClient
 } from "../controllers/wireguard.controller.js";
 
 const router = express.Router();
 
-// Client public key ro‘yxatdan o‘tishi (VPN connect)
+// VPN connect
 router.post("/register-client", registerWireguardClient);
 
-// Client uchun WireGuard config olish
+// Config olish
 router.get("/config/:userId", getUserWireguardConfig);
+
+// VPN disconnect
+router.delete("/disconnect/:userId", deleteWireguardClient);
 
 export default router;

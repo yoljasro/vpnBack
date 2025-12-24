@@ -1,12 +1,11 @@
 import Server from "../models/Server.js";
 import WireguardClient from "../models/WireguardClient.js";
 import {
-  assignClientIP,
   addPeerToWireguard,
   removePeerFromWireguard
 } from "../utils/wireguard.js";
 import { selectBestServer } from "../utils/selectBestServer.js";
-import { releaseIp } from "../utils/ipAllocator.js";
+import { allocateIp, releaseIp } from "../utils/ipAllocator.js";
 
 /**
  * 1️⃣ Client public keyni ro‘yxatdan o‘tkazish (VPN connect)
@@ -22,7 +21,7 @@ export const registerWireguardClient = async (req, res) => {
       });
     }
 
-    // ✅ Agar serverId kelmasa, eng bo‘sh serverni tanlaymiz
+    // ✅ Server tanlash
     let server;
     if (!serverId) {
       server = await selectBestServer();
@@ -36,7 +35,7 @@ export const registerWireguardClient = async (req, res) => {
       }
     }
 
-    // ✅ Aynan shu server uchun client mavjudligini tekshiramiz
+    // ✅ Shu serverda oldin ro‘yxatdan o‘tganmi?
     const existingClient = await WireguardClient.findOne({
       userId,
       serverId: server._id
@@ -60,14 +59,14 @@ export const registerWireguardClient = async (req, res) => {
       });
     }
 
-    // ✅ IP ajratish (atomic)
-    const assignedIP = await assignClientIP(server._id);
+    // ✅ IP ajratish (TO‘G‘RI FUNKSIYA)
+    const assignedIP = await allocateIp(server._id);
 
-    // ✅ Peer qo‘shish (aniq serverga)
+    // ✅ WireGuard peer qo‘shish
     await addPeerToWireguard(server, clientPublicKey, assignedIP);
 
     // ✅ DB ga yozish
-    const newClient = await WireguardClient.create({
+    await WireguardClient.create({
       serverId: server._id,
       userId,
       clientPublicKey,
@@ -100,7 +99,7 @@ export const registerWireguardClient = async (req, res) => {
 };
 
 /**
- * 2️⃣ Client uchun tayyor WireGuard config olish
+ * 2️⃣ Client uchun WireGuard config olish
  */
 export const getUserWireguardConfig = async (req, res) => {
   try {
@@ -156,27 +155,31 @@ export const deleteWireguardClient = async (req, res) => {
 
     const client = await WireguardClient.findOne({ userId });
     if (!client) {
-      return res.status(404).json({ success: false, message: "Client topilmadi" });
-    }
-
-    const server = await Server.findById(client.serverId);
-    if (!server) {
-      return res.status(404).json({ success: false, message: "Server topilmadi" });
+      return res.status(404).json({
+        success: false,
+        message: "Client topilmadi"
+      });
     }
 
     // 1️⃣ WG dan o‘chirish
     await removePeerFromWireguard(client.clientPublicKey);
 
-    // 2️⃣ IP recycle
+    // 2️⃣ IP bo‘shatish
     await releaseIp(client.assignedIP);
 
     // 3️⃣ DB dan o‘chirish
     await client.deleteOne();
 
-    return res.json({ success: true, message: "Client o‘chirildi" });
+    return res.json({
+      success: true,
+      message: "Client o‘chirildi"
+    });
 
   } catch (err) {
     console.error("❌ DELETE WG ERROR:", err);
-    return res.status(500).json({ success: false, message: err.message });
+    return res.status(500).json({
+      success: false,
+      message: err.message
+    });
   }
 };
