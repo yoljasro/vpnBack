@@ -6,8 +6,10 @@ import WireguardClient from "../models/WireguardClient.js";
  * @returns {Object} Server document
  */
 export async function selectBestServer() {
-  // Barcha aktiv serverlarni olamiz
-  const servers = await Server.find({ isActive: true });
+  const servers = await Server.find({
+    status: "online",
+    protocol: "WireGuard"
+  });
 
   if (!servers.length) {
     throw new Error("NO_ACTIVE_SERVERS");
@@ -25,10 +27,6 @@ export async function selectBestServer() {
       minClients = clientCount;
       bestServer = server;
     }
-  }
-
-  if (!bestServer) {
-    throw new Error("SERVER_NOT_FOUND");
   }
 
   return bestServer;

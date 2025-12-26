@@ -8,7 +8,7 @@ import { selectBestServer } from "../utils/selectBestServer.js";
 import { allocateIp, releaseIp } from "../utils/ipAllocator.js";
 
 /**
- * 1️⃣ Client public keyni ro‘yxatdan o‘tkazish (VPN connect)
+ * 1️⃣ VPN CONNECT
  */
 export const registerWireguardClient = async (req, res) => {
   try {
@@ -17,25 +17,31 @@ export const registerWireguardClient = async (req, res) => {
     if (!clientPublicKey || !userId) {
       return res.status(400).json({
         success: false,
-        message: "Majburiy field yetishmayapti"
+        message: "clientPublicKey yoki userId yetishmayapti"
       });
     }
 
-    // ✅ Server tanlash
+    // 🔹 Server tanlash
     let server;
-    if (!serverId) {
-      server = await selectBestServer();
-    } else {
+    if (serverId) {
       server = await Server.findById(serverId);
-      if (!server) {
+      if (!server || server.status !== "online") {
         return res.status(404).json({
           success: false,
-          message: "Server topilmadi"
+          message: "Server topilmadi yoki offline"
+        });
+      }
+    } else {
+      server = await selectBestServer();
+      if (!server) {
+        return res.status(500).json({
+          success: false,
+          message: "Mos server topilmadi"
         });
       }
     }
 
-    // ✅ Shu serverda oldin ro‘yxatdan o‘tganmi?
+    // 🔹 Client allaqachon bormi?
     const existingClient = await WireguardClient.findOne({
       userId,
       serverId: server._id
@@ -44,28 +50,34 @@ export const registerWireguardClient = async (req, res) => {
     if (existingClient) {
       return res.json({
         success: true,
-        message: "Client allaqachon ro‘yxatdan o‘tgan",
+        message: "Client allaqachon ulangan",
         data: {
           interface: {
             address: existingClient.assignedIP,
-            dns: server.dns
+            dns: server.dns || "8.8.8.8"
           },
           peer: {
             publicKey: server.wgPublicKey,
             endpoint: `${server.ip}:${server.wgPort}`,
-            allowedIPs: server.allowedIPs
+            allowedIPs: server.allowedIPs || "0.0.0.0/0"
           }
         }
       });
     }
 
-    // ✅ IP ajratish (TO‘G‘RI FUNKSIYA)
+    // 🔹 IP ajratish
     const assignedIP = await allocateIp(server._id);
+    if (!assignedIP) {
+      return res.status(500).json({
+        success: false,
+        message: "Bo‘sh IP topilmadi"
+      });
+    }
 
-    // ✅ WireGuard peer qo‘shish
+    // 🔹 WireGuard peer qo‘shish
     await addPeerToWireguard(server, clientPublicKey, assignedIP);
 
-    // ✅ DB ga yozish
+    // 🔹 DB ga yozish
     await WireguardClient.create({
       serverId: server._id,
       userId,
@@ -75,15 +87,16 @@ export const registerWireguardClient = async (req, res) => {
 
     return res.json({
       success: true,
+      message: "VPN muvaffaqiyatli ulandi",
       data: {
         interface: {
           address: assignedIP,
-          dns: server.dns
+          dns: server.dns || "8.8.8.8"
         },
         peer: {
           publicKey: server.wgPublicKey,
           endpoint: `${server.ip}:${server.wgPort}`,
-          allowedIPs: server.allowedIPs
+          allowedIPs: server.allowedIPs || "0.0.0.0/0"
         }
       }
     });
@@ -99,7 +112,7 @@ export const registerWireguardClient = async (req, res) => {
 };
 
 /**
- * 2️⃣ Client uchun WireGuard config olish
+ * 2️⃣ CONFIG OLISH
  */
 export const getUserWireguardConfig = async (req, res) => {
   try {
@@ -126,12 +139,12 @@ export const getUserWireguardConfig = async (req, res) => {
       data: {
         interface: {
           address: client.assignedIP,
-          dns: server.dns
+          dns: server.dns || "8.8.8.8"
         },
         peer: {
           publicKey: server.wgPublicKey,
           endpoint: `${server.ip}:${server.wgPort}`,
-          allowedIPs: server.allowedIPs
+          allowedIPs: server.allowedIPs || "0.0.0.0/0"
         }
       }
     });
@@ -147,7 +160,7 @@ export const getUserWireguardConfig = async (req, res) => {
 };
 
 /**
- * 3️⃣ Clientni o‘chirish (disconnect)
+ * 3️⃣ VPN DISCONNECT
  */
 export const deleteWireguardClient = async (req, res) => {
   try {
@@ -161,25 +174,28 @@ export const deleteWireguardClient = async (req, res) => {
       });
     }
 
-    // 1️⃣ WG dan o‘chirish
-    await removePeerFromWireguard(client.clientPublicKey);
+    const server = await Server.findById(client.serverId);
 
-    // 2️⃣ IP bo‘shatish
+    // 🔹 Peer o‘chirish
+    await removePeerFromWireguard(client.clientPublicKey, server);
+
+    // 🔹 IP bo‘shatish
     await releaseIp(client.assignedIP);
 
-    // 3️⃣ DB dan o‘chirish
+    // 🔹 DB dan o‘chirish
     await client.deleteOne();
 
     return res.json({
       success: true,
-      message: "Client o‘chirildi"
+      message: "VPN muvaffaqiyatli o‘chirildi"
     });
 
   } catch (err) {
     console.error("❌ DELETE WG ERROR:", err);
     return res.status(500).json({
       success: false,
-      message: err.message
+      message: "Clientni o‘chirishda xatolik",
+      error: err.message
     });
   }
 };
