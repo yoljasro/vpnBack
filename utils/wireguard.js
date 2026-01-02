@@ -19,3 +19,4 @@ export const removePeerFromWireguard = async (publicKey) => {
     await exec(`wg-quick save wg0`);
   });
 };
+  
