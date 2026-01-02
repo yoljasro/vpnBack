@@ -53,13 +53,14 @@ export const registerWireguardClient = async (req, res) => {
         message: "Client allaqachon ulangan",
         data: {
           interface: {
-            address: existingClient.assignedIP,
+            address: `${existingClient.assignedIP}/32`,
             dns: server.dns || "8.8.8.8"
           },
           peer: {
             publicKey: server.wgPublicKey,
             endpoint: `${server.ip}:${server.wgPort}`,
-            allowedIPs: server.allowedIPs || "0.0.0.0/0"
+            allowedIPs: server.allowedIPs || ["0.0.0.0/0"],
+            persistentKeepalive: 25
           }
         }
       });
@@ -90,13 +91,14 @@ export const registerWireguardClient = async (req, res) => {
       message: "VPN muvaffaqiyatli ulandi",
       data: {
         interface: {
-          address: assignedIP,
+          address: `${assignedIP}/32`,
           dns: server.dns || "8.8.8.8"
         },
         peer: {
           publicKey: server.wgPublicKey,
           endpoint: `${server.ip}:${server.wgPort}`,
-          allowedIPs: server.allowedIPs || "0.0.0.0/0"
+          allowedIPs: server.allowedIPs || ["0.0.0.0/0"],
+          persistentKeepalive: 25
         }
       }
     });
@@ -138,13 +140,14 @@ export const getUserWireguardConfig = async (req, res) => {
       success: true,
       data: {
         interface: {
-          address: client.assignedIP,
+          address: `${client.assignedIP}/32`,
           dns: server.dns || "8.8.8.8"
         },
         peer: {
           publicKey: server.wgPublicKey,
           endpoint: `${server.ip}:${server.wgPort}`,
-          allowedIPs: server.allowedIPs || "0.0.0.0/0"
+          allowedIPs: server.allowedIPs || ["0.0.0.0/0"],
+          persistentKeepalive: 25
         }
       }
     });
