@@ -10,16 +10,16 @@ const serverSchema = new mongoose.Schema(
     status: { type: String, default: "online" },
     load: { type: Number, default: 0 },
 
-    // WireGuard fields
+    // WireGuard
     wgPort: { type: Number, default: 51820 },
     wgPublicKey: { type: String, required: true },
 
     dns: { type: String, default: "1.1.1.1" },
 
-    // ⚠️ MUHIM
+    // 🔥 MUHIM: IPv4 + IPv6 tunneling
     allowedIPs: {
       type: [String],
-      default: ["0.0.0.0/0"]
+      default: ["0.0.0.0/0", "::/0"]
     }
   },
   { timestamps: true }

@@ -7,7 +7,7 @@ const exec = util.promisify(_exec);
 // ➕ ADD PEER
 export const addPeerToWireguard = async (server, publicKey, ip) => {
   return withWgLock(async () => {
-    await exec(`wg set wg0 peer ${publicKey} allowed-ips ${ip}/32`);
+    await exec(`wg set wg0 peer ${publicKey} allowed-ips ${ip}/32`);  
     await exec(`wg-quick save wg0`);
   });
 };

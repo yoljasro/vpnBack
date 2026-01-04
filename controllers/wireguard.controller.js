@@ -8,16 +8,21 @@ import { selectBestServer } from "../utils/selectBestServer.js";
 import { allocateIp, releaseIp } from "../utils/ipAllocator.js";
 
 /**
- * 1️⃣ VPN CONNECT
+ * 1️⃣ VPN CONNECT / REGISTER
  */
 export const registerWireguardClient = async (req, res) => {
   try {
-    const { serverId, clientPublicKey, userId } = req.body;
+    const {
+      serverId,
+      clientPublicKey,
+      clientPrivateKey,
+      userId
+    } = req.body;
 
-    if (!clientPublicKey || !userId) {
+    if (!clientPublicKey || !clientPrivateKey || !userId) {
       return res.status(400).json({
         success: false,
-        message: "clientPublicKey yoki userId yetishmayapti"
+        message: "clientPublicKey, clientPrivateKey yoki userId yetishmayapti"
       });
     }
 
@@ -41,7 +46,7 @@ export const registerWireguardClient = async (req, res) => {
       }
     }
 
-    // 🔹 Client allaqachon bormi?
+    // 🔹 Client allaqachon mavjudmi?
     const existingClient = await WireguardClient.findOne({
       userId,
       serverId: server._id
@@ -53,13 +58,14 @@ export const registerWireguardClient = async (req, res) => {
         message: "Client allaqachon ulangan",
         data: {
           interface: {
+            privateKey: existingClient.clientPrivateKey,
             address: `${existingClient.assignedIP}/32`,
             dns: server.dns || "8.8.8.8"
           },
           peer: {
             publicKey: server.wgPublicKey,
             endpoint: `${server.ip}:${server.wgPort}`,
-            allowedIPs: server.allowedIPs || ["0.0.0.0/0"],
+            allowedIPs: ["0.0.0.0/0", "::/0"], // 🔥 FIX
             persistentKeepalive: 25
           }
         }
@@ -75,7 +81,7 @@ export const registerWireguardClient = async (req, res) => {
       });
     }
 
-    // 🔹 WireGuard peer qo‘shish
+    // 🔹 WireGuard peer qo‘shish (server tomoni)
     await addPeerToWireguard(server, clientPublicKey, assignedIP);
 
     // 🔹 DB ga yozish
@@ -83,6 +89,7 @@ export const registerWireguardClient = async (req, res) => {
       serverId: server._id,
       userId,
       clientPublicKey,
+      clientPrivateKey,
       assignedIP
     });
 
@@ -91,13 +98,14 @@ export const registerWireguardClient = async (req, res) => {
       message: "VPN muvaffaqiyatli ulandi",
       data: {
         interface: {
+          privateKey: clientPrivateKey,
           address: `${assignedIP}/32`,
           dns: server.dns || "8.8.8.8"
         },
         peer: {
           publicKey: server.wgPublicKey,
           endpoint: `${server.ip}:${server.wgPort}`,
-          allowedIPs: server.allowedIPs || ["0.0.0.0/0"],
+          allowedIPs: ["0.0.0.0/0", "::/0"], // 🔥 FIX
           persistentKeepalive: 25
         }
       }
@@ -140,13 +148,14 @@ export const getUserWireguardConfig = async (req, res) => {
       success: true,
       data: {
         interface: {
+          privateKey: client.clientPrivateKey,
           address: `${client.assignedIP}/32`,
           dns: server.dns || "8.8.8.8"
         },
         peer: {
           publicKey: server.wgPublicKey,
           endpoint: `${server.ip}:${server.wgPort}`,
-          allowedIPs: server.allowedIPs || ["0.0.0.0/0"],
+          allowedIPs: ["0.0.0.0/0", "::/0"], // 🔥 FIX
           persistentKeepalive: 25
         }
       }
