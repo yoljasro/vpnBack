@@ -4,19 +4,23 @@ import { withWgLock } from "./wgMutex.js";
 
 const exec = util.promisify(_exec);
 
-// ➕ ADD PEER
 export const addPeerToWireguard = async (server, publicKey, ip) => {
   return withWgLock(async () => {
-    await exec(`wg set wg0 peer ${publicKey} allowed-ips ${ip}/32`);  
-    await exec(`wg-quick save wg0`);
+    const iface = server.wgInterface || "wg0";
+
+    await exec(
+      `wg set ${iface} peer ${publicKey} allowed-ips ${ip}/32 persistent-keepalive 25`
+    );
+
+    await exec(`wg-quick save ${iface}`);
   });
 };
 
-// ❌ REMOVE PEER
-export const removePeerFromWireguard = async (publicKey) => {
+export const removePeerFromWireguard = async (server, publicKey) => {
   return withWgLock(async () => {
-    await exec(`wg set wg0 peer ${publicKey} remove`);
-    await exec(`wg-quick save wg0`);
+    const iface = server.wgInterface || "wg0";
+
+    await exec(`wg set ${iface} peer ${publicKey} remove`);
+    await exec(`wg-quick save ${iface}`);
   });
 };
-  

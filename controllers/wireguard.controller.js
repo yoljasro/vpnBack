@@ -65,15 +65,15 @@ export const registerWireguardClient = async (req, res) => {
           peer: {
             publicKey: server.wgPublicKey,
             endpoint: `${server.ip}:${server.wgPort}`,
-            allowedIPs: ["0.0.0.0/0", "::/0"], // 🔥 FIX
+            allowedIPs: ["0.0.0.0/0", "::/0"],
             persistentKeepalive: 25
           }
         }
       });
     }
 
-    // 🔹 IP ajratish
-    const assignedIP = await allocateIp(server._id);
+    // 🔹 IP ajratish (🔥 FIX)
+    const assignedIP = await allocateIp();
     if (!assignedIP) {
       return res.status(500).json({
         success: false,
@@ -81,7 +81,7 @@ export const registerWireguardClient = async (req, res) => {
       });
     }
 
-    // 🔹 WireGuard peer qo‘shish (server tomoni)
+    // 🔹 WireGuard peer qo‘shish
     await addPeerToWireguard(server, clientPublicKey, assignedIP);
 
     // 🔹 DB ga yozish
@@ -105,7 +105,7 @@ export const registerWireguardClient = async (req, res) => {
         peer: {
           publicKey: server.wgPublicKey,
           endpoint: `${server.ip}:${server.wgPort}`,
-          allowedIPs: ["0.0.0.0/0", "::/0"], // 🔥 FIX
+          allowedIPs: ["0.0.0.0/0", "::/0"],
           persistentKeepalive: 25
         }
       }
@@ -155,7 +155,7 @@ export const getUserWireguardConfig = async (req, res) => {
         peer: {
           publicKey: server.wgPublicKey,
           endpoint: `${server.ip}:${server.wgPort}`,
-          allowedIPs: ["0.0.0.0/0", "::/0"], // 🔥 FIX
+          allowedIPs: ["0.0.0.0/0", "::/0"],
           persistentKeepalive: 25
         }
       }
@@ -188,8 +188,8 @@ export const deleteWireguardClient = async (req, res) => {
 
     const server = await Server.findById(client.serverId);
 
-    // 🔹 Peer o‘chirish
-    await removePeerFromWireguard(client.clientPublicKey, server);
+    // 🔹 Peer o‘chirish (🔥 FIX)
+    await removePeerFromWireguard(server, client.clientPublicKey);
 
     // 🔹 IP bo‘shatish
     await releaseIp(client.assignedIP);
