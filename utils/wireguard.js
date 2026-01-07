@@ -8,11 +8,12 @@ export const addPeerToWireguard = async (server, publicKey, ip) => {
   return withWgLock(async () => {
     const iface = server.wgInterface || "wg0";
 
-    await exec(
-      `wg set ${iface} peer ${publicKey} allowed-ips ${ip}/32 persistent-keepalive 25`
-    );
+    // 🔹 'sudo' qo'shildi
+    const cmd = `sudo wg set ${iface} peer ${publicKey} allowed-ips ${ip}/32 persistent-keepalive 25`;
+    console.log(`🔹 Running: ${cmd}`);
+    await exec(cmd);
 
-    await exec(`wg-quick save ${iface}`);
+    await exec(`sudo wg-quick save ${iface}`);
   });
 };
 
@@ -20,7 +21,7 @@ export const removePeerFromWireguard = async (server, publicKey) => {
   return withWgLock(async () => {
     const iface = server.wgInterface || "wg0";
 
-    await exec(`wg set ${iface} peer ${publicKey} remove`);
-    await exec(`wg-quick save ${iface}`);
+    await exec(`sudo wg set ${iface} peer ${publicKey} remove`);
+    await exec(`sudo wg-quick save ${iface}`);
   });
 };
