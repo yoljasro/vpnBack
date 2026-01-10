@@ -4,16 +4,35 @@ import {
   getUserWireguardConfig,
   deleteWireguardClient
 } from "../controllers/wireguard.controller.js";
+import { authMiddleware } from "../middlewares/auth.js";
 
 const router = express.Router();
 
-// VPN connect
-router.post("/register-client", registerWireguardClient);
+/**
+ * 🔐 VPN connect / register
+ */
+router.post(
+  "/register-client",
+  authMiddleware,
+  registerWireguardClient
+);
 
-// Config olish
-router.get("/config/:userId", getUserWireguardConfig);
+/**
+ * 🔐 Config olish (token orqali)
+ */
+router.get(
+  "/config",
+  authMiddleware,
+  getUserWireguardConfig
+);
 
-// VPN disconnect
-router.delete("/disconnect/:userId", deleteWireguardClient);
+/**
+ * 🔐 VPN disconnect
+ */
+router.delete(
+  "/disconnect",
+  authMiddleware,
+  deleteWireguardClient
+);
 
 export default router;
