@@ -14,12 +14,9 @@ import { allocateIp, releaseIp } from "../utils/ipAllocator.js";
  */
 export const registerWireguardClient = async (req, res) => {
   try {
-    const {
-      serverId,
-      clientPublicKey,
-      clientPrivateKey,
-      userId
-    } = req.body;
+    // 🔹 JWT orqali userId olish
+    const userId = req.user?.id;
+    const { serverId, clientPublicKey, clientPrivateKey } = req.body;
 
     // 🔹 Validation
     if (!clientPublicKey || !clientPrivateKey || !userId) {
@@ -29,9 +26,7 @@ export const registerWireguardClient = async (req, res) => {
       });
     }
 
-    /**
-     * 🔹 Server tanlash
-     */
+    // 🔹 Server tanlash
     let server;
     if (serverId) {
       server = await Server.findById(serverId);
@@ -51,9 +46,7 @@ export const registerWireguardClient = async (req, res) => {
       }
     }
 
-    /**
-     * 🔹 Client allaqachon ulanganmi?
-     */
+    // 🔹 Client allaqachon ulanganmi?
     const existingClient = await WireguardClient.findOne({
       userId,
       serverId: server._id
@@ -67,7 +60,7 @@ export const registerWireguardClient = async (req, res) => {
           interface: {
             privateKey: existingClient.clientPrivateKey,
             address: `${existingClient.assignedIP}/32`,
-            dns: server.dns // ✅ FAQAT server DNS
+            dns: server.dns
           },
           peer: {
             publicKey: server.wgPublicKey,
@@ -79,10 +72,8 @@ export const registerWireguardClient = async (req, res) => {
       });
     }
 
-    /**
-     * 🔹 IP ajratish
-     */
-    const assignedIP = await allocateIp();
+    // 🔹 IP ajratish (faqat 10.0.0.0/24 subnet)
+    const assignedIP = await allocateIp({ subnet: "10.0.0.0/24" });
     if (!assignedIP) {
       return res.status(500).json({
         success: false,
@@ -90,14 +81,10 @@ export const registerWireguardClient = async (req, res) => {
       });
     }
 
-    /**
-     * 🔹 WireGuard peer qo‘shish
-     */
+    // 🔹 WireGuard peer qo‘shish
     await addPeerToWireguard(server, clientPublicKey, assignedIP);
 
-    /**
-     * 🔹 DB ga yozish
-     */
+    // 🔹 DB ga yozish
     await WireguardClient.create({
       serverId: server._id,
       userId,
@@ -106,9 +93,7 @@ export const registerWireguardClient = async (req, res) => {
       assignedIP
     });
 
-    /**
-     * 🔹 Clientga config qaytarish
-     */
+    // 🔹 Clientga config qaytarish
     return res.json({
       success: true,
       message: "VPN muvaffaqiyatli ulandi",
@@ -116,7 +101,7 @@ export const registerWireguardClient = async (req, res) => {
         interface: {
           privateKey: clientPrivateKey,
           address: `${assignedIP}/32`,
-          dns: server.dns // ✅ MUHIM FIX
+          dns: server.dns
         },
         peer: {
           publicKey: server.wgPublicKey,
@@ -144,7 +129,7 @@ export const registerWireguardClient = async (req, res) => {
  */
 export const getUserWireguardConfig = async (req, res) => {
   try {
-    const { userId } = req.params;
+    const userId = req.user?.id;
 
     const client = await WireguardClient.findOne({ userId });
     if (!client) {
@@ -168,7 +153,7 @@ export const getUserWireguardConfig = async (req, res) => {
         interface: {
           privateKey: client.clientPrivateKey,
           address: `${client.assignedIP}/32`,
-          dns: server.dns // ✅ FAQAT server DNS
+          dns: server.dns
         },
         peer: {
           publicKey: server.wgPublicKey,
@@ -196,7 +181,7 @@ export const getUserWireguardConfig = async (req, res) => {
  */
 export const deleteWireguardClient = async (req, res) => {
   try {
-    const { userId } = req.params;
+    const userId = req.user?.id;
 
     const client = await WireguardClient.findOne({ userId });
     if (!client) {
@@ -214,19 +199,13 @@ export const deleteWireguardClient = async (req, res) => {
       });
     }
 
-    /**
-     * 🔹 Peer o‘chirish
-     */
+    // 🔹 Peer o‘chirish
     await removePeerFromWireguard(server, client.clientPublicKey);
 
-    /**
-     * 🔹 IP bo‘shatish
-     */
+    // 🔹 IP bo‘shatish
     await releaseIp(client.assignedIP);
 
-    /**
-     * 🔹 DB dan o‘chirish
-     */
+    // 🔹 DB dan o‘chirish
     await client.deleteOne();
 
     return res.json({
