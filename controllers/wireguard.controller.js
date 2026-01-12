@@ -60,11 +60,11 @@ export const registerWireguardClient = async (req, res) => {
           interface: {
             privateKey: existingClient.clientPrivateKey,
             address: `${existingClient.assignedIP}/32`,
-            dns: server.dns
+            dns: server.dns || "10.7.0.1"
           },
           peer: {
             publicKey: server.wgPublicKey,
-            endpoint: `${server.ip}:${server.wgPort}`,
+            endpoint: `${server.ip}:443`,
             allowedIPs: ["0.0.0.0/0", "::/0"],
             persistentKeepalive: 25
           }
@@ -72,8 +72,8 @@ export const registerWireguardClient = async (req, res) => {
       });
     }
 
-    // 🔹 IP ajratish (faqat 10.0.0.0/24 subnet)
-    const assignedIP = await allocateIp({ subnet: "10.0.0.0/24" });
+    // 🔹 IP ajratish (10.7.0.0/24 subnet)
+    const assignedIP = await allocateIp();
     if (!assignedIP) {
       return res.status(500).json({
         success: false,
@@ -101,11 +101,11 @@ export const registerWireguardClient = async (req, res) => {
         interface: {
           privateKey: clientPrivateKey,
           address: `${assignedIP}/32`,
-          dns: server.dns
+          dns: server.dns || "10.7.0.1"
         },
         peer: {
           publicKey: server.wgPublicKey,
-          endpoint: `${server.ip}:${server.wgPort}`,
+          endpoint: `${server.ip}:443`,
           allowedIPs: ["0.0.0.0/0", "::/0"],
           persistentKeepalive: 25
         }
@@ -153,11 +153,11 @@ export const getUserWireguardConfig = async (req, res) => {
         interface: {
           privateKey: client.clientPrivateKey,
           address: `${client.assignedIP}/32`,
-          dns: server.dns
+          dns: server.dns || "10.7.0.1"
         },
         peer: {
           publicKey: server.wgPublicKey,
-          endpoint: `${server.ip}:${server.wgPort}`,
+          endpoint: `${server.ip}:443`,
           allowedIPs: ["0.0.0.0/0", "::/0"],
           persistentKeepalive: 25
         }
